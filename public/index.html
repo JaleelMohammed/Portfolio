@@ -1,0 +1,968 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jaleel K M - Frontend Developer Portfolio</title>
+    <!-- Favicon -->
+    <link rel="icon" href="https://placehold.co/32x32/1E293B/E2E8F0?text=J" type="image/x-icon">
+    <!-- Font Awesome for icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet"/>
+    <!-- Google Fonts - Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        /* Custom styles and animations for the portfolio */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .animate-fade-in {
+            animation: fadeIn 1s ease-out forwards;
+            opacity: 0;
+        }
+
+        .animate-fade-in-up {
+            animation: fadeInUp 0.8s ease-out forwards;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .animate-bounce-icon {
+            animation: bounceIcon 0.8s ease-in-out infinite alternate;
+        }
+
+        @keyframes bounceIcon {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-950">
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+
+    <!-- React and ReactDOM CDNs -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel-standalone for JSX transformation in the browser -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <script type="text/babel">
+        // Destructure useState and useEffect from React globally for convenience
+        const { useState, useEffect } = React;
+
+        // Main App component
+        const App = () => {
+            const [activeSection, setActiveSection] = useState('home');
+            // State to manage skill hover for animation
+            const [hoveredSkill, setHoveredSkill] = useState(null);
+
+            // States for Gemini API integration (Skill Explanation)
+            const [showExplanationModal, setShowExplanationModal] = useState(false);
+            const [currentSkillExplanation, setCurrentSkillExplanation] = useState('');
+            const [isLoadingExplanation, setIsLoadingExplanation] = useState(false);
+            const [selectedSkillForExplanation, setSelectedSkillForExplanation] = useState('');
+
+            // States for Gemini API integration (Project Description Enhancement)
+            const [showProjectEnhancementModal, setShowProjectEnhancementModal] = useState(false);
+            const [currentProjectEnhancement, setCurrentProjectEnhancement] = useState('');
+            const [isLoadingProjectEnhancement, setIsLoadingProjectEnhancement] = useState(false);
+            const [selectedProjectForEnhancement, setSelectedProjectForEnhancement] = useState({ name: '', description: '' });
+
+            // States for Gemini API integration (Bio Summary)
+            const [showBioSummaryModal, setShowBioSummaryModal] = useState(false);
+            const [generatedBioSummary, setGeneratedBioSummary] = useState('');
+            const [isLoadingBioSummary, setIsLoadingBioSummary] = useState(false);
+            const userBioText = "Dedicated to building beautiful, responsive, and highly interactive web applications. I love bringing ideas to life through clean and efficient code.";
+
+            // States for Gemini API integration (Project Idea Generator)
+            const [showProjectIdeaModal, setShowProjectIdeaModal] = useState(false);
+            const [generatedProjectIdea, setGeneratedProjectIdea] = useState('');
+            // Corrected: Changed '=' to ',' in useState destructuring
+            const [isLoadingProjectIdea, setIsLoadingProjectIdea] = useState(false);
+
+            // States for Gemini API integration (Cover Letter Snippet)
+            const [showCoverLetterModal, setShowCoverLetterModal] = useState(false);
+            const [coverLetterPrompt, setCoverLetterPrompt] = useState('');
+            const [generatedCoverLetterSnippet, setGeneratedCoverLetterSnippet] = useState('');
+            const [isLoadingCoverLetter, setIsLoadingCoverLetter] = useState(false);
+
+            // States for Gemini API integration (Interview Question)
+            const [showInterviewQuestionModal, setShowInterviewQuestionModal] = useState(false);
+            const [interviewQuestion, setInterviewQuestion] = useState('');
+            const [interviewAnswer, setInterviewAnswer] = useState('');
+            const [isLoadingInterviewQuestion, setIsLoadingInterviewQuestion] = useState(false);
+
+
+            // States for Contact Form
+            const [formData, setFormData] = useState({
+                name: '',
+                email: '',
+                message: '',
+            });
+            const [formStatus, setFormStatus] = useState(''); // 'idle', 'sending', 'success', 'error'
+
+
+            // Function to scroll to a section smoothly
+            const scrollToSection = (id) => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.scrollIntoView({ behavior: 'smooth' });
+                    setActiveSection(id);
+                }
+            };
+
+            // Function to call Gemini API for skill explanation
+            const generateSkillExplanation = async (skillName) => {
+                setIsLoadingExplanation(true);
+                setCurrentSkillExplanation(''); // Clear previous explanation
+                setSelectedSkillForExplanation(skillName);
+                setShowExplanationModal(true); // Open modal immediately
+
+                // Construct the prompt for the Gemini LLM
+                const prompt =` As a concise and beginner-friendly explainer for a frontend development fresher, provide a 2-3 sentence overview of ${skillName}, explaining its core purpose and importance in building web applications.`;
+
+                try {
+                    let chatHistory = [];
+                    chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+                    const payload = { contents: chatHistory };
+                    const apiKey = ""; // Canvas will provide this at runtime
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    const result = await response.json(); // Await the JSON parsing
+
+                    if (result.candidates && result.candidates.length > 0 &&
+                        result.candidates[0].content && result.candidates[0].content.parts &&
+                        result.candidates[0].content.parts.length > 0) {
+                        const text = result.candidates[0].content.parts[0].text;
+                        setCurrentSkillExplanation(text);
+                    } else {
+                        setCurrentSkillExplanation("Could not generate explanation. Please try again.");
+                    }
+                } catch (error) {
+                    console.error("Error calling Gemini API for skill explanation:", error);
+                    setCurrentSkillExplanation("Failed to fetch explanation due to a network error or API issue.");
+                } finally {
+                    setIsLoadingExplanation(false);
+                }
+            };
+
+            // Function to call Gemini API for project description enhancement
+            const enhanceProjectDescription = async (projectName, currentDescription) => {
+                setIsLoadingProjectEnhancement(true);
+                setCurrentProjectEnhancement(''); // Clear previous enhancement
+                setSelectedProjectForEnhancement({ name: projectName, description: currentDescription });
+                setShowProjectEnhancementModal(true); // Open modal immediately
+
+                // Corrected prompt with proper backticks
+                const prompt =` As a professional portfolio reviewer, suggest concise and impactful ways to enhance the project description for a frontend developer's portfolio. Focus on highlighting technologies used, key features, and the impact of the project. The project is named '${projectName}' and its current description is: '${currentDescription}'. Provide 2-3 bullet points or sentences that can directly replace or augment the description.`;
+
+                try {
+                    let chatHistory = [];
+                    chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+                    const payload = { contents: chatHistory };
+                    const apiKey = ""; // Canvas will provide this at runtime
+                    const apiUrl =` https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    const result = await response.json(); // Await the JSON parsing
+
+                    if (result.candidates && result.candidates.length > 0 &&
+                        result.candidates[0].content && result.candidates[0].content.parts &&
+                        result.candidates[0].content.parts.length > 0) {
+                        const text = result.candidates[0].content.parts[0].text;
+                        setCurrentProjectEnhancement(text);
+                    } else {
+                        setCurrentProjectEnhancement("Could not generate enhancement. Please try again.");
+                    }
+                } catch (error) {
+                    console.error("Error calling Gemini API for project enhancement:", error);
+                    setCurrentProjectEnhancement("Failed to fetch enhancement due to a network error or API issue.");
+                } finally {
+                    setIsLoadingProjectEnhancement(false);
+                }
+            };
+
+            // Function to call Gemini API for bio summary
+            const generateBioSummary = async () => {
+                setIsLoadingBioSummary(true);
+                setGeneratedBioSummary(''); // Clear previous summary
+                setShowBioSummaryModal(true); // Open modal immediately
+
+                // Corrected prompt with proper backticks
+                const prompt =` As a professional career advisor, condense the following frontend developer's self-introduction into a compelling, 1-2 sentence summary, highlighting their passion and goal for a professional profile or resume headline. Original text: "${userBioText}"`;
+
+                try {
+                    let chatHistory = [];
+                    chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+                    const payload = { contents: chatHistory };
+                    const apiKey = ""; // Canvas will provide this at runtime
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    const result = await response.json();
+
+                    if (result.candidates && result.candidates.length > 0 &&
+                        result.candidates[0].content && result.candidates[0].content.parts &&
+                        result.candidates[0].content.parts.length > 0) {
+                        const text = result.candidates[0].content.parts[0].text;
+                        setGeneratedBioSummary(text);
+                    } else {
+                        setGeneratedBioSummary("Could not generate summary. Please try again.");
+                    }
+                } catch (error) {
+                    console.error("Error calling Gemini API for bio summary:", error);
+                    setGeneratedBioSummary("Failed to fetch summary due to a network error or API issue.");
+                } finally {
+                    setIsLoadingBioSummary(false);
+                }
+            };
+
+            // Function to call Gemini API for a new project idea
+            const generateProjectIdea = async () => {
+                setIsLoadingProjectIdea(true);
+                setGeneratedProjectIdea('');
+                setShowProjectIdeaModal(true);
+
+                // Corrected prompt with proper backticks
+                const prompt =` As an innovative frontend developer, suggest a unique and engaging web application project idea that a fresher can build for their portfolio. Include a brief description of its core functionality and potential technologies (e.g., React, Tailwind CSS, a specific API). Make it a single paragraph.`;
+
+                try {
+                    let chatHistory = [];
+                    chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+                    const payload = { contents: chatHistory };
+                    const apiKey = ""; // Canvas will provide this at runtime
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    const result = await response.json();
+
+                    if (result.candidates && result.candidates.length > 0 &&
+                        result.candidates[0].content && result.candidates[0].content.parts &&
+                        result.candidates[0].content.parts.length > 0) {
+                        const text = result.candidates[0].content.parts[0].text;
+                        setGeneratedProjectIdea(text);
+                    } else {
+                        setGeneratedProjectIdea("Could not generate a project idea. Please try again.");
+                    }
+                } catch (error) {
+                    console.error("Error calling Gemini API for project idea:", error);
+                    setGeneratedProjectIdea("Failed to fetch project idea due to a network error or API issue.");
+                } finally {
+                    setIsLoadingProjectIdea(false);
+                }
+            };
+
+            // Function to generate Cover Letter Snippet
+            const generateCoverLetterSnippet = async () => {
+                setIsLoadingCoverLetter(true);
+                setGeneratedCoverLetterSnippet('');
+                setShowCoverLetterModal(true);
+
+                // Corrected prompt with proper backticks
+                const prompt =` As a professional career advisor assisting a frontend developer fresher, generate a concise, impactful 2-3 sentence cover letter opening or a key paragraph. The applicant's primary skills are HTML5, CSS3, JavaScript, React.js, and Tailwind CSS. The prompt for this cover letter is: "${coverLetterPrompt}". Focus on how their skills align with the prompt.`;
+
+                try {
+                    let chatHistory = [];
+                    chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+                    const payload = { contents: chatHistory };
+                    const apiKey = ""; // Canvas will provide this at runtime
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    const result = await response.json();
+
+                    if (result.candidates && result.candidates.length > 0 &&
+                        result.candidates[0].content && result.candidates[0].content.parts &&
+                        result.candidates[0].content.parts.length > 0) {
+                        const text = result.candidates[0].content.parts[0].text;
+                        setGeneratedCoverLetterSnippet(text);
+                    } else {
+                        setGeneratedCoverLetterSnippet("Could not generate cover letter snippet. Please try again.");
+                    }
+                } catch (error) {
+                    console.error("Error calling Gemini API for cover letter snippet:", error);
+                    // Corrected string: removed '000000000' artifact
+                    setGeneratedCoverLetterSnippet("Failed to fetch cover letter snippet due to a network error or API issue.");
+                } finally {
+                    setIsLoadingCoverLetter(false);
+                }
+            };
+
+            // Function to generate Interview Question
+            const generateInterviewQuestion = async () => {
+                setIsLoadingInterviewQuestion(true);
+                setInterviewQuestion('');
+                setInterviewAnswer('');
+                setShowInterviewQuestionModal(true);
+
+                // Corrected prompt with proper backticks
+                const prompt = `Generate one advanced frontend developer interview question and a concise answer for a fresher. Format it as: "Question: [Your question here]\\nAnswer: [Your answer here]"`;
+
+                try {
+                    let chatHistory = [];
+                    chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+                    const payload = { contents: chatHistory };
+                    const apiKey = ""; // Canvas will provide this at runtime
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    const result = await response.json();
+
+                    if (result.candidates && result.candidates.length > 0 &&
+                        result.candidates[0].content && result.candidates[0].content.parts &&
+                        result.candidates[0].content.parts.length > 0) {
+                        const text = result.candidates[0].content.parts[0].text;
+                        // Split the response into question and answer parts
+                        const [questionPart, answerPart] = text.split('\nAnswer: ');
+                        setInterviewQuestion(questionPart.replace('Question: ', ''));
+                        setInterviewAnswer(answerPart);
+                    } else {
+                        setInterviewQuestion("Could not generate question. Please try again.");
+                        setInterviewAnswer("");
+                    }
+                } catch (error) {
+                    console.error("Error calling Gemini API for interview question:", error);
+                    setInterviewQuestion("Failed to fetch interview question due to a network error or API issue.");
+                    setInterviewAnswer("");
+                } finally {
+                    setIsLoadingInterviewQuestion(false);
+                }
+            };
+
+            // Handle form input changes
+            const handleInputChange = (e) => {
+                const { name, value } = e.target;
+                setFormData((prevData) => ({
+                    ...prevData,
+                    [name]: value,
+                }));
+            };
+
+            // Handle form submission using Formspree via Fetch API
+            const handleFormSubmit = async (e) => {
+                e.preventDefault(); // Prevent default form submission to handle with fetch
+                setFormStatus('sending');
+
+                try {
+                    const response = await fetch("YOUR_FORMSPREE_ENDPOINT_HERE", { // REPLACE THIS WITH YOUR ACTUAL FORMSPREE ENDPOINT
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json' // Important for Formspree's JSON API
+                        },
+                        body: JSON.stringify({
+                            name: formData.name,
+                            _replyto: formData.email, // Formspree uses _replyto for the sender's email
+                            message: formData.message,
+                            _subject: "New Portfolio Contact Message!", // Custom subject for your email
+                        })
+                    });
+
+                    if (response.ok) {
+                        setFormStatus('success');
+                        setFormData({ name: '', email: '', message: '' }); // Clear form fields on success
+                    } else {
+                        // If response is not OK, try to parse error message from Formspree
+                        const errorData = await response.json();
+                        console.error("Formspree error:", errorData);
+                        setFormStatus('error');
+                    }
+                } catch (error) {
+                    console.error("Network or submission error:", error);
+                    setFormStatus('error');
+                }
+            };
+
+
+            return (
+                <div className="min-h-screen bg-gray-950 text-gray-200 font-inter antialiased">
+                    {/* Navigation Bar */}
+                    <nav className="fixed top-0 left-0 right-0 z-50 bg-gray-950 bg-opacity-90 backdrop-blur-md shadow-lg py-4 px-6 md:px-12 flex justify-center">
+                        <ul className="flex space-x-4 md:space-x-10">
+                            <li>
+                                <button
+                                    onClick={() => scrollToSection('home')}
+                                    className={`text-lg font-medium transition-colors duration-300 ${
+                                        activeSection === 'home' ? 'text-blue-400' : 'text-gray-300 hover:text-blue-300'
+                                    }`}
+                                >
+                                    Home
+                                </button>
+                            </li>
+                            <li>
+                                <button
+                                    onClick={() => scrollToSection('skills')}
+                                    className={`text-lg font-medium transition-colors duration-300 ${
+                                        activeSection === 'skills' ? 'text-blue-400' : 'text-gray-300 hover:text-blue-300'
+                                    }`}
+                                >
+                                    Skills
+                                </button>
+                            </li>
+                            <li>
+                                <button
+                                    onClick={() => scrollToSection('projects')}
+                                    className={`text-lg font-medium transition-colors duration-300 ${
+                                        activeSection === 'projects' ? 'text-blue-400' : 'text-gray-300 hover:text-blue-300'
+                                    }`}
+                                >
+                                    Projects
+                                </button>
+                            </li>
+                            <li>
+                                <button
+                                    onClick={() => scrollToSection('education')}
+                                    className={`text-lg font-medium transition-colors duration-300 ${
+                                        activeSection === 'education' ? 'text-blue-400' : 'text-gray-300 hover:text-blue-300'
+                                    }`}
+                                >
+                                    Education
+                                </button>
+                            </li>
+                            <li>
+                                <button
+                                    onClick={() => scrollToSection('contact')}
+                                    className={`text-lg font-medium transition-colors duration-300 ${
+                                        activeSection === 'contact' ? 'text-blue-400' : 'text-gray-300 hover:text-blue-300'
+                                    }`}
+                                >
+                                    Contact
+                                </button>
+                            </li>
+                        </ul>
+                    </nav>
+
+                    {/* Main Content Area */}
+                    <main className="pt-24 pb-12 px-4 sm:px-8 md:px-16 lg:px-24">
+                        {/* Home/Hero Section */}
+                        <section id="home" className="min-h-[calc(100vh-6rem)] flex items-center justify-center text-center py-16 animate-fade-in">
+                            <div className="max-w-4xl mx-auto px-4">
+                                <h1 className="text-5xl md:text-7xl font-extrabold text-white leading-tight mb-4">
+                                    Hi, I'm  <span className="text-blue-400">Jaleel K M</span>
+                                </h1>
+                                <p className="text-2xl md:text-3xl text-gray-300 mb-8">
+                                    A passionate <span className="font-semibold text-blue-300">Frontend Developer</span>
+                                </p>
+                                <p className="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto mb-10">
+                                    {userBioText}
+                                </p>
+                                <div className="flex flex-wrap justify-center gap-4">
+                                    <a
+                                        href="https://www.linkedin.com/in/jaleel-mohammed-7992b8307"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center px-6 py-3 border border-blue-600 text-blue-200 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 ease-in-out bg-blue-600 hover:bg-blue-700 transform hover:-translate-y-1"
+                                    >
+                                        <i className="fab fa-linkedin mr-2"></i> LinkedIn
+                                    </a>
+                                    <a
+                                        href="https://github.com/JaleelMohammed"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center px-6 py-3 border border-gray-700 text-gray-200 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 ease-in-out bg-gray-800 hover:bg-gray-700 transform hover:-translate-y-1"
+                                    >
+                                        <i className="fab fa-github mr-2"></i> GitHub
+                                    </a>
+                                    <a
+                                        href="resume_jaleel_m(1).pdf" /* Linking to the uploaded resume within the public folder */
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center px-6 py-3 border border-green-600 text-green-200 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 ease-in-out bg-green-600 hover:bg-green-700 transform hover:-translate-y-1"
+                                    >
+                                        <i className="fas fa-file-alt mr-2"></i> My CV
+                                    </a>
+                                    
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* Skills Section */}
+                        <section id="skills" className="py-16 md:py-24 text-center">
+                            <h2 className="text-4xl md:text-5xl font-bold text-white mb-12 animate-fade-in-up">My Skills</h2>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
+                                {[
+                                    { name: 'HTML5', icon: 'fab fa-html5', color: 'text-orange-500' },
+                                    { name: 'CSS3', icon: 'fab fa-css3-alt', color: 'text-blue-500' },
+                                    { name: 'JavaScript', icon: 'fab fa-js-square', color: 'text-yellow-500' },
+                                    { name: 'React.js', icon: 'fab fa-react', color: 'text-blue-400' },
+                                    { name: 'Tailwind CSS', icon: 'fas fa-wind', color: 'text-cyan-400' },
+                                    { name: 'Git', icon: 'fab fa-git-alt', color: 'text-red-600' },
+                                    { name: 'GitHub', icon: 'fab fa-github', color: 'text-gray-400' },
+                                    { name: 'Responsive Design', icon: 'fas fa-mobile-alt', color: 'text-indigo-400' },
+                                ].map((skill, index) => (
+                                    <div
+                                        key={skill.name}
+                                        className="bg-gray-800 rounded-xl p-6 flex flex-col items-center justify-center shadow-lg transition-all duration-300 hover:scale-105 hover:bg-gray-700 transform"
+                                        onMouseEnter={() => setHoveredSkill(skill.name)}
+                                        onMouseLeave={() => setHoveredSkill(null)}
+                                    >
+                                        <i
+                                            className={`${skill.icon} text-5xl mb-3 transition-transform duration-300 ${skill.color} ${
+                                                hoveredSkill === skill.name ? 'animate-bounce-icon' : ''
+                                            }`}
+                                        ></i>
+                                        <p className="text-xl font-semibold text-gray-200">{skill.name}</p>
+                                        
+                                    </div>
+                                ))}
+                                <div className="col-span-full flex justify-center mt-8">
+                                    
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* Projects Section */}
+                        <section id="projects" className="py-16 md:py-24 text-center">
+                            <h2 className="text-4xl md:text-5xl font-bold text-white mb-12 animate-fade-in-up">My Projects</h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+                                {/* RJ Technology Project */}
+                                <div className="bg-gray-800 rounded-xl p-8 shadow-lg flex flex-col justify-between transition-all duration-300 hover:scale-[1.02] hover:bg-gray-700 transform">
+                                    <div>
+                                        <h3 className="text-3xl font-bold text-blue-400 mb-4">RJ Technology</h3>
+                                        <p className="text-gray-300 mb-6 text-lg">
+                                            A modern web application showcasing technology solutions. Built with a focus on clean UI/UX and responsive design.
+                                        </p>
+                                    </div>
+                                    <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                                        <a
+                                            href="https://rjtechnology-gray.vercel.app/"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center justify-center px-4 py-2 border border-blue-600 text-blue-200 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 ease-in-out bg-blue-600 hover:bg-blue-700 transform hover:-translate-y-1 mt-auto text-sm"
+                                        >
+                                            View Project <i className="fas fa-external-link-alt ml-2"></i>
+                                        </a>
+                                        
+                                    </div>
+                                </div>
+
+                                {/* Placeholder for more projects */}
+                                <div className="bg-gray-800 rounded-xl p-8 shadow-lg flex flex-col justify-between transition-all duration-300 hover:scale-[1.02] hover:bg-gray-700 transform">
+                                    <div>
+                                        <h3 className="text-3xl font-bold text-blue-400 mb-4">Coming Soon!</h3>
+                                        <p className="text-gray-300 mb-6 text-lg">
+                                            I'm constantly working on new and exciting projects. Check back soon for more updates!
+                                        </p>
+                                    </div>
+                                    <button
+                                        disabled
+                                        className="inline-flex items-center justify-center px-6 py-3 border border-gray-600 text-gray-500 rounded-lg shadow-md bg-gray-700 cursor-not-allowed mt-auto"
+                                    >
+                                        More Projects Here
+                                    </button>
+                                    
+                                </div>
+
+                                {/* Placeholder for more projects */}
+                                <div className="bg-gray-800 rounded-xl p-8 shadow-lg flex flex-col justify-between transition-all duration-300 hover:scale-[1.02] hover:bg-gray-700 transform">
+                                    <div>
+                                        <h3 className="text-3xl font-bold text-blue-400 mb-4">Coming Soon!</h3>
+                                        <p className="text-gray-300 mb-6 text-lg">
+                                            I'm constantly working on new and exciting projects. Check back soon for more updates!
+                                        </p>
+                                    </div>
+                                    <button
+                                        disabled
+                                        className="inline-flex items-center justify-center px-6 py-3 border border-gray-600 text-gray-500 rounded-lg shadow-md bg-gray-700 cursor-not-allowed mt-auto"
+                                    >
+                                        More Projects Here
+                                    </button>
+                                    
+                                </div>
+
+                                {/* Placeholder for more projects */}
+                                <div className="bg-gray-800 rounded-xl p-8 shadow-lg flex flex-col justify-between transition-all duration-300 hover:scale-[1.02] hover:bg-gray-700 transform">
+                                    <div>
+                                        <h3 className="text-3xl font-bold text-blue-400 mb-4">Coming Soon!</h3>
+                                        <p className="text-gray-300 mb-6 text-lg">
+                                            I'm constantly working on new and exciting projects. Check back soon for more updates!
+                                        </p>
+                                    </div>
+                                    <button
+                                        disabled
+                                        className="inline-flex items-center justify-center px-6 py-3 border border-gray-600 text-gray-500 rounded-lg shadow-md bg-gray-700 cursor-not-allowed mt-auto"
+                                    >
+                                        More Projects Here
+                                    </button>
+                                    
+                                </div>
+
+                                {/* New Project Idea Generator Button */}
+                                <div className="col-span-1 md:col-span-2 bg-gray-800 rounded-xl p-8 shadow-lg flex flex-col items-center justify-center transition-all duration-300 hover:scale-[1.01] hover:bg-gray-700 transform">
+                                    <h3 className="text-3xl font-bold text-blue-400 mb-4">Need a Project Idea?</h3>
+                                    <p className="text-gray-300 mb-6 text-lg">
+                                        Click below to get a fresh frontend project idea for your portfolio!
+                                    </p>
+                                    
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* Education Section */}
+                        <section id="education" className="py-16 md:py-24 text-center">
+                            <h2 className="text-4xl md:text-5xl font-bold text-white mb-12 animate-fade-in-up">My Education</h2>
+                            <div className="max-w-3xl mx-auto bg-gray-800 rounded-xl p-8 shadow-lg transition-all duration-300 hover:scale-[1.01] hover:bg-gray-700 transform">
+                                <div className="flex flex-col md:flex-row justify-between items-center mb-4">
+                                    <h3 className="text-3xl font-bold text-blue-400 mb-2 md:mb-0">Bachelor of Computer Applications (BCA)</h3>
+                                    <p className="text-gray-400 text-lg">2021-2024</p>
+                                </div>
+                                <p className="text-gray-300 text-xl mb-2">Mangalore University</p>
+                                <p className="text-gray-400 text-lg">Specialization in Computer Science and Applications</p>
+                            </div>
+                        </section>
+
+                        {/* Contact Section */}
+                        <section id="contact" className="py-16 md:py-24 text-center">
+                            <h2 className="text-4xl md:text-5xl font-bold text-white mb-12 animate-fade-in-up">Get in Touch</h2>
+                            <div className="max-w-xl mx-auto bg-gray-800 rounded-xl p-8 shadow-lg transition-all duration-300 hover:scale-[1.01] hover:bg-gray-700 transform">
+                                <p className="text-gray-300 text-xl mb-6">
+                                    I'm always open to new opportunities and collaborations. Feel free to reach out!
+                                </p>
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-center text-left">
+                                        <i className="fas fa-envelope text-blue-400 text-2xl mr-4"></i>
+                                        <a
+                                            href="mailto:iamjaleelmohammed@gmail.com"
+                                            className="text-gray-200 text-lg hover:text-blue-300 transition-colors duration-300"
+                                        >
+                                            iamjaleelmohammed@gmail.com
+                                        </a>
+                                    </div>
+                                    <div className="flex items-center justify-center text-left">
+                                        <i className="fas fa-phone-alt text-blue-400 text-2xl mr-4"></i>
+                                        <span className="text-gray-200 text-lg">
+                                            +91 8861895145
+                                        </span>
+                                    </div>
+                                </div>
+                                <div className="mt-8 flex justify-center gap-6">
+                                    <a
+                                        href="https://www.linkedin.com/in/jaleel-mohammed-7992b8307"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-blue-400 hover:text-blue-300 text-4xl transition-colors duration-300 transform hover:scale-110"
+                                    >
+                                        <i className="fab fa-linkedin"></i>
+                                    </a>
+                                    <a
+                                        href="https://github.com/JaleelMohammed"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-gray-400 hover:text-gray-300 text-4xl transition-colors duration-300 transform hover:scale-110"
+                                    >
+                                        <i className="fab fa-github"></i>
+                                    </a>
+                                    <a
+                                        href="mailto:iamjaleelmohammed@gmail.com"
+                                        className="text-red-400 hover:text-red-300 text-4xl transition-colors duration-300 transform hover:scale-110"
+                                    >
+                                        <i className="fas fa-envelope"></i>
+                                    </a>
+                                </div>
+                            </div>
+
+                            {/* Generate Cover Letter Snippet Button */}
+                            <div className="mt-12 pt-8 border-t border-gray-700">
+                                <h3 className="text-3xl font-bold text-white mb-6">Need a Cover Letter Snippet?</h3>
+                                <p className="text-gray-300 text-lg mb-6">
+                                    Generate a brief opening or paragraph for your cover letter, tailored to a specific job or company.
+                                </p>
+                                <input
+                                    type="text"
+                                    value={coverLetterPrompt}
+                                    onChange={(e) => setCoverLetterPrompt(e.target.value)}
+                                    className="w-full px-4 py-3 rounded-md bg-gray-700 text-gray-200 border border-gray-600 focus:outline-none focus:border-blue-500 transition-colors duration-200 mb-4"
+                                    placeholder="E.g., 'Frontend Developer at Google' or 'React position'"
+                                />
+                                
+                            </div>
+
+                            {/* Contact Form - Integrated with Formspree */}
+                            <div className="mt-12 pt-8 border-t border-gray-700">
+                                <h3 className="text-3xl font-bold text-white mb-6">Send Me a Message</h3>
+                                <form
+                                    action="YOUR_FORMSPREE_ENDPOINT_HERE" /* IMPORTANT: Replace with your Formspree endpoint */
+                                    method="POST"
+                                    onSubmit={handleFormSubmit}
+                                    className="space-y-6 text-left"
+                                >
+                                    <div>
+                                        <label htmlFor="name" className="block text-gray-300 text-lg font-medium mb-2">
+                                            Name
+                                        </label>
+                                        <input
+                                            type="text"
+                                            id="name"
+                                            name="name"
+                                            value={formData.name}
+                                            onChange={handleInputChange}
+                                            className="w-full px-4 py-3 rounded-md bg-gray-700 text-gray-200 border border-gray-600 focus:outline-none focus:border-blue-500 transition-colors duration-200"
+                                            placeholder="Your Name"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label htmlFor="email" className="block text-gray-300 text-lg font-medium mb-2">
+                                            Email
+                                        </label>
+                                        <input
+                                            type="email"
+                                            id="email"
+                                             name="email"/*  before name="_replyto"  Use _replyto for Formspree to set reply-to header */
+                                            value={formData.email}
+                                            onChange={handleInputChange}
+                                            className="w-full px-4 py-3 rounded-md bg-gray-700 text-gray-200 border border-gray-600 focus:outline-none focus:border-blue-500 transition-colors duration-200"
+                                            placeholder="your.email@example.com"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label htmlFor="message" className="block text-gray-300 text-lg font-medium mb-2">
+                                            Message
+                                        </label>
+                                        <textarea
+                                            id="message"
+                                            name="message"
+                                            rows="5"
+                                            value={formData.message}
+                                            onChange={handleInputChange}
+                                            className="w-full px-4 py-3 rounded-md bg-gray-700 text-gray-200 border border-gray-600 focus:outline-none focus:border-blue-500 transition-colors duration-200"
+                                            placeholder="Your message..."
+                                            required
+                                        ></textarea>
+                                    </div>
+
+                                    <button
+                                        type="submit"
+                                        className="w-full px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 ease-in-out hover:bg-blue-700 hover:-translate-y-1"
+                                        disabled={formStatus === 'sending'}
+                                    >
+                                        {formStatus === 'sending' ? 'Sending...' : 'Send Message'}
+                                    </button>
+                                    {formStatus === 'success' && (
+                                        <p className="text-green-400 mt-4 text-center text-lg">Message sent successfully!</p>
+                                    )}
+                                    {formStatus === 'error' && (
+                                        <p className="text-red-400 mt-4 text-center text-lg">Failed to send message. Please try again later.</p>
+                                    )}
+                                    <p className="text-gray-400 text-center text-sm mt-3">
+                                        (Powered by Formspree.io)
+                                    </p>
+                                </form>
+                            </div>
+                        </section>
+                    </main>
+
+                    {/* Footer */}
+                    <footer className="bg-gray-900 py-6 text-center text-gray-500 text-sm">
+                        <p>&copy; {new Date().getFullYear()} Jaleel K M. All rights reserved.</p>
+                        
+                    </footer>
+
+                    {/* Skill Explanation Modal */}
+                    {showExplanationModal && (
+                        <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 p-4">
+                            <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md mx-auto shadow-xl border border-blue-600">
+                                <h3 className="text-2xl font-bold text-white mb-4">Explanation for {selectedSkillForExplanation}</h3>
+                                {isLoadingExplanation ? (
+                                    <div className="flex items-center justify-center py-8">
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400"></div>
+                                        <p className="ml-3 text-gray-300">Generating explanation...</p>
+                                    </div>
+                                ) : (
+                                    <p className="text-gray-300 text-lg mb-6">{currentSkillExplanation}</p>
+                                )}
+                                <button
+                                    onClick={() => setShowExplanationModal(false)}
+                                    className="mt-4 px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors duration-200 shadow-md w-full"
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Project Enhancement Modal */}
+                    {showProjectEnhancementModal && (
+                        <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 p-4">
+                            <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md mx-auto shadow-xl border border-green-600">
+                                <h3 className="text-2xl font-bold text-white mb-4">Enhancements for "{selectedProjectForEnhancement.name}"</h3>
+                                {isLoadingProjectEnhancement ? (
+                                    <div className="flex items-center justify-center py-8">
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-400"></div>
+                                        <p className="ml-3 text-gray-300">Generating suggestions...</p>
+                                    </div>
+                                ) : (
+                                    <div>
+                                        <p className="text-gray-300 text-lg mb-4">
+                                            <span className="font-semibold text-blue-300">Current Description:</span> {selectedProjectForEnhancement.description}
+                                        </p>
+                                        <p className="text-gray-300 text-lg mb-6">
+                                            <span className="font-semibold text-green-300">Suggested Enhancements:</span><br/>{currentProjectEnhancement}
+                                        </p>
+                                    </div>
+                                )}
+                                <button
+                                    onClick={() => setShowProjectEnhancementModal(false)}
+                                    className="mt-4 px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors duration-200 shadow-md w-full"
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Bio Summary Modal */}
+                    {showBioSummaryModal && (
+                        <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 p-4">
+                            <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md mx-auto shadow-xl border border-purple-600">
+                                <h3 className="text-2xl font-bold text-white mb-4">Generated Bio Summary</h3>
+                                {isLoadingBioSummary ? (
+                                    <div className="flex items-center justify-center py-8">
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400"></div>
+                                        <p className="ml-3 text-gray-300">Generating summary...</p>
+                                    </div>
+                                ) : (
+                                    <p className="text-gray-300 text-lg mb-6">{generatedBioSummary}</p>
+                                )}
+                                <button
+                                    onClick={() => setShowBioSummaryModal(false)}
+                                    className="mt-4 px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors duration-200 shadow-md w-full"
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Project Idea Modal */}
+                    {showProjectIdeaModal && (
+                        <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 p-4">
+                            <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md mx-auto shadow-xl border border-purple-600">
+                                <h3 className="text-2xl font-bold text-white mb-4">New Project Idea</h3>
+                                {isLoadingProjectIdea ? (
+                                    <div className="flex items-center justify-center py-8">
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400"></div>
+                                        <p className="ml-3 text-gray-300">Generating idea...</p>
+                                    </div>
+                                ) : (
+                                    <p className="text-gray-300 text-lg mb-6">{generatedProjectIdea}</p>
+                                )}
+                                <button
+                                    onClick={() => setShowProjectIdeaModal(false)}
+                                    className="mt-4 px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors duration-200 shadow-md w-full"
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Cover Letter Snippet Modal */}
+                    {showCoverLetterModal && (
+                        <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 p-4">
+                            <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md mx-auto shadow-xl border border-indigo-600">
+                                <h3 className="text-2xl font-bold text-white mb-4">Cover Letter Snippet</h3>
+                                {isLoadingCoverLetter ? (
+                                    <div className="flex items-center justify-center py-8">
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-400"></div>
+                                        <p className="ml-3 text-gray-300">Generating snippet...</p>
+                                    </div>
+                                ) : (
+                                    <p className="text-gray-300 text-lg mb-6">{generatedCoverLetterSnippet}</p>
+                                )}
+                                <button
+                                    onClick={() => setShowCoverLetterModal(false)}
+                                    className="mt-4 px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors duration-200 shadow-md w-full"
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Interview Question Modal */}
+                    {showInterviewQuestionModal && (
+                        <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 p-4">
+                            <div className="bg-gray-800 rounded-lg p-6 w-full max-w-lg mx-auto shadow-xl border border-teal-600">
+                                <h3 className="text-2xl font-bold text-white mb-4">Frontend Interview Question</h3>
+                                {isLoadingInterviewQuestion ? (
+                                    <div className="flex items-center justify-center py-8">
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-400"></div>
+                                        <p className="ml-3 text-gray-300">Generating question...</p>
+                                    </div>
+                                ) : (
+                                    <div>
+                                        <p className="text-gray-300 text-lg font-semibold mb-2">Question:</p>
+                                        <p className="text-gray-200 text-base mb-4">{interviewQuestion}</p>
+                                        <p className="text-gray-300 text-lg font-semibold mb-2">Answer:</p>
+                                        <p className="text-gray-200 text-base mb-6">{interviewAnswer}</p>
+                                    </div>
+                                )}
+                                <button
+                                    onClick={() => setShowInterviewQuestionModal(false)}
+                                    className="mt-4 px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors duration-200 shadow-md w-full"
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        // Render the App component into the 'root' div
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+</html>
